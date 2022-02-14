@@ -1,18 +1,26 @@
 package threadImpl;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+import java.util.Random;
+import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class SleepingBarberThreadPoolVersion {
+	//default configuration
 	static int allHaircut = 100;
 	static int barberCount = 10;
+	static int customerIntervalTime = 100;
 	static int maxWaittingRoom = 20;
+	static int barberHiarcutTime = 500;
 	
 	static AtomicInteger totoalHaricut = new AtomicInteger(0);
 	static AtomicInteger avalibleBarber = new AtomicInteger(barberCount);
@@ -24,6 +32,27 @@ public class SleepingBarberThreadPoolVersion {
 	final static Condition condition = lock.newCondition();
 
 	public static void main(String[] args) {
+		Scanner input = new Scanner(System.in);
+		//user input configutation
+		System.out.println("Pleas input the barber num:(end with enter)");
+		barberCount = input.nextInt();
+		System.out.println("Please input the interval time of every customer:"
+				+ "(in milisec)");
+		customerIntervalTime = input.nextInt();
+		System.out.println("Please input the customer number:(end with enter)");
+		allHaircut = input.nextInt();
+		System.out.println("Please input the waitting room campacity:(end with enter)");
+		maxWaittingRoom = input.nextInt();
+		System.out.println("Please input the haricut time:(end with enter)");
+		barberHiarcutTime = input.nextInt();
+		input.close();
+		totoalHaricut = new AtomicInteger(0);
+		avalibleBarber = new AtomicInteger(barberCount);
+		haircutOngoinQueue = new MyQueue(barberCount);
+		
+		Random r = new Random();
+		
+		List<Thread> ts = new ArrayList<Thread>();
 		ExecutorService es = Executors.newFixedThreadPool(barberCount);
 		for (int i = 0; i < barberCount; i++) {
 			
@@ -34,19 +63,22 @@ public class SleepingBarberThreadPoolVersion {
 					while(true) {
 						try {
 							//get a customer from the blocking queue
-							System.out.println(totoalHaricut.get());
 							if(allHaircut <= totoalHaricut.get()) {
 								System.out.println("All customer have got their hiarcut barber " + getName() + ""
 										+ " goes off-line");
 								return;
 							}
+							
 							var customer = haircutOngoinQueue.get();
+							
 							//a barber goes to work
 							avalibleBarber.decrementAndGet();
 							System.out.println("Customer " + customer + " awakes Barber " + getName() +" up");
 							System.out.println("Barber " + getName() + " is giving customer "+ customer + " haircut.... directly");
 							//do haircut
-							Thread.sleep(1500);
+							double devaation = r.nextDouble();
+							var pauseTime = devaation > 0.5 ? (int) barberHiarcutTime*(1-devaation):(int) barberHiarcutTime*(1+devaation);
+							Thread.sleep((long) pauseTime);
 							System.out.println("Customer " + customer + " finished his/her haircut");
 							if(totoalHaricut.addAndGet(1) >= allHaircut) {
 								System.out.println("All customer have got their hiarcut barber " + getName() + ""
@@ -57,30 +89,33 @@ public class SleepingBarberThreadPoolVersion {
 							//barber goes to the waitting room to check if any customer need a haircut
 							int  waittingRoomCustomer;
 							while(true) {
-								lock.lock();
-								try {
-									if(waittingRoom.isEmpty()) {
-										avalibleBarber.incrementAndGet();
-										System.out.println(avalibleBarber.get());
-										break;
+								if(lock.tryLock(100, TimeUnit.MILLISECONDS)) {
+									try {
+										if(waittingRoom.isEmpty()) {
+											avalibleBarber.incrementAndGet();
+											System.out.println("The waitting room is empty, barber " + getName() + "goes to sleep");
+											break;
+										}
+										//awake a customer from the waitting room
+										waittingRoomCustomer = waittingRoom.remove();
+										System.out.println("Barber " + getName() + " awaked customer "+ waittingRoomCustomer + " in the waitting room");
+									} finally {
+										lock.unlock();
 									}
-									//awake a customer from the waitting room
-									waittingRoomCustomer = waittingRoom.remove();
-									System.out.println("Barber " + getName() + " awaked customer "+ waittingRoomCustomer + " in the waitting room");
-								} finally {
-									lock.unlock();
-								}
-								System.out.println("Barber " + getName() + " is giving customer "+ waittingRoomCustomer + " haircut....");								//do haircut
-								Thread.sleep(1500);
-								System.out.println("Customer " + waittingRoomCustomer + " finished his/her haircut");
-								if(totoalHaricut.addAndGet(1) >= allHaircut) {
-									System.out.println("All customer have got their hiarcut barber " + getName() + ""
-											+ " goes off-line");
-									return;
+									System.out.println("Barber " + getName() + " is giving customer "+ waittingRoomCustomer + " haircut....");								//do haircut
+									devaation = r.nextDouble();
+									pauseTime = devaation > 0.5 ? (int) barberHiarcutTime*(1-devaation):(int) barberHiarcutTime*(1+devaation);
+									Thread.sleep((long) pauseTime);
+									System.out.println("Customer " + waittingRoomCustomer + " finished his/her haircut");
+									if(totoalHaricut.addAndGet(1) >= allHaircut) {
+										System.out.println("All customer have got their hiarcut barber " + getName() + ""
+												+ " goes off-line");
+										return;
+									}
+									
 								}
 							}
 						} catch (InterruptedException e) {
-							e.printStackTrace();
 							return;
 						}
 					}
@@ -88,6 +123,7 @@ public class SleepingBarberThreadPoolVersion {
 			};
 			
 			es.submit(barber);
+			ts.add(barber);
 		}
 		es.shutdown();
 		var customerGenratorThread = new Thread() {
@@ -96,40 +132,42 @@ public class SleepingBarberThreadPoolVersion {
 				//loop for generating customer and put them to the haircut queue or waitting room
 				for (int i = 0; true; i++) {
 					try {
-						Thread.sleep(50);
+						var devaation = r.nextDouble();
+						var pauseTime = devaation > 0.5 ? (int) customerIntervalTime*(1-devaation):(int) customerIntervalTime*(1+devaation);
+						Thread.sleep((long) pauseTime);
+						if(lock.tryLock(100, TimeUnit.MILLISECONDS)) {
+							try {
+								if(avalibleBarber.get() <= 0 || totoalHaricut.get() >= allHaircut) {
+									//waittiing room is full
+									if(waittingRoom.size() >= maxWaittingRoom) {
+										System.out.println("The waitting room is full! Customer "+ i+ " will leave");
+										continue;
+									}
+									if(totoalHaricut.get() >= allHaircut){
+										System.out.println("The Barber shop closed!");
+										return;
+									}
+									else{
+										//no avalible barber, customer should go to the waitting room
+										waittingRoom.add(i);
+										System.out.println("Customer "+ i+ " sits in the waitting room");
+									}
+									
+								}
+								else{
+									//barber avaliable, so customer gets a haircut directly
+									haircutOngoinQueue.add(i);
+									System.out.println("Customer "+ i+ " find an avilable barber, and will get a haircut directly");
+								}
+								
+							} finally {
+								lock.unlock();
+							} 
+						}
 //						System.out.println("waitting");
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
-					lock.lock();
-					try {
-						if(avalibleBarber.get() <= 0 || totoalHaricut.get() >= allHaircut) {
-							//waittiing room is full
-							if(waittingRoom.size() >= maxWaittingRoom) {
-								System.out.println("The waitting room is full! Customer "+ i+ " will leave");
-								continue;
-							}
-							if(totoalHaricut.get() >= allHaircut){
-								System.out.println("The Barber shop closed!");
-								return;
-							}
-							else{
-								//no avalible barber, customer should go to the waitting room
-								waittingRoom.add(i);
-								System.out.println("Customer "+ i+ " sits in the waitting room");
-							}
-							
-						}
-						else{
-							//barber avaliable, so customer gets a haircut directly
-							haircutOngoinQueue.add(i);
-							System.out.println("Customer "+ i+ " find an avilable barber, and will get a haircut directly");
-						}
-						
-					} finally {
-						lock.unlock();
-					} 
-					
 				}
 			}
 		};
