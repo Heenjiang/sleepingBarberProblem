@@ -48,6 +48,11 @@ And the ***java.util.concurrent*** package provide different kind of locks for s
 2. ability to **timeout while waiting for lock;**
 3. ability to lock **interruptedly**
 
+```java
+	final static Lock lock = new ReentrantLock(true);
+	final static Condition condition = lock.newCondition();
+```
+
 and also we need the ***Condition*** serve as signal to perform ***await and notify*** functions . To avoid code complexity, we can implement our own blocking queue.
 
 ```java
