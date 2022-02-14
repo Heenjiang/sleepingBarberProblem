@@ -53,6 +53,8 @@ And the ***java.util.concurrent*** package provide different kind of locks for s
 	final static Condition condition = lock.newCondition();
 ```
 
+Notice here we pass a boolean parameter to the ReentrantLock constructor, it will return a fair RenentrantLock. A fair lock could avoid starvation problem, but will lose some efficiency. (fairness and )
+
 and also we need the ***Condition*** serve as signal to perform ***await and notify*** functions . To avoid code complexity, we can implement our own blocking queue.
 
 ```java
@@ -170,3 +172,30 @@ es.shutdown();
 
 ## Test Java program
 
+#### Initialization
+
+![parameters_initilazed_test.png](https://github.com/Heenjiang/sleepingBarberProblem/blob/master/SleepingBarberProblem/parameters_initilazed_test.png?raw=true)
+
+#### Customer comes one by one
+
+![Barber_working_flow.png](https://github.com/Heenjiang/sleepingBarberProblem/blob/master/SleepingBarberProblem/Barber_working_flow.png?raw=true)
+
+
+
+#### Barber goes to sleep when waiting room is empty
+
+![fairLock.png](https://github.com/Heenjiang/sleepingBarberProblem/blob/master/SleepingBarberProblem/fairLock.png?raw=true)
+
+
+
+#### Cutometer goes to waiting room if no available barber
+
+![Customer_gets_waittingRoom.png](https://github.com/Heenjiang/sleepingBarberProblem/blob/master/SleepingBarberProblem/Customer_gets_waittingRoom.png?raw=true)
+
+#### Program exits
+
+![Program_exit.png](https://github.com/Heenjiang/sleepingBarberProblem/blob/master/SleepingBarberProblem/Program_exit.png?raw=true)
+
+## Real world example
+
+For example, in Amazon's customer call center, there are **M**  personnel responsible for answering calls. The time interval for customers to make calls is random. When a user makes a call, if there is a free staff member, they will be connected. If all staff are answering the phone, the user can choose to continue to wait (enter the waiting queue) , if there are too many people waiting, the system will suggest the user to leave now and call later. The call center staff can rest or do other things (even sleep) when they don't answer the phone. When the customer's call is connected, they will talk to the customer (this time is also random). After the call is over, the staff will Go check the customers in the waiting queue and pick one of them to connect (fairness, stavation), otherwise just rest.
