@@ -68,7 +68,6 @@ public class SleepingBarberThreadPoolVersion {
 										+ " goes off-line");
 								return;
 							}
-							
 							var customer = haircutOngoinQueue.get();
 							
 							//a barber goes to work
@@ -89,30 +88,28 @@ public class SleepingBarberThreadPoolVersion {
 							//barber goes to the waitting room to check if any customer need a haircut
 							int  waittingRoomCustomer;
 							while(true) {
-								if(lock.tryLock(100, TimeUnit.MILLISECONDS)) {
-									try {
-										if(waittingRoom.isEmpty()) {
-											avalibleBarber.incrementAndGet();
-											System.out.println("The waitting room is empty, barber " + getName() + "goes to sleep");
-											break;
-										}
-										//awake a customer from the waitting room
-										waittingRoomCustomer = waittingRoom.remove();
-										System.out.println("Barber " + getName() + " awaked customer "+ waittingRoomCustomer + " in the waitting room");
-									} finally {
-										lock.unlock();
+								lock.lock();
+								try {
+									if(waittingRoom.isEmpty()) {
+										avalibleBarber.incrementAndGet();
+										System.out.println("The waitting room is empty, barber " + getName() + " goes to sleep");
+										break;
 									}
-									System.out.println("Barber " + getName() + " is giving customer "+ waittingRoomCustomer + " haircut....");								//do haircut
-									devaation = r.nextDouble();
-									pauseTime = devaation > 0.5 ? (int) barberHiarcutTime*(1-devaation):(int) barberHiarcutTime*(1+devaation);
-									Thread.sleep((long) pauseTime);
-									System.out.println("Customer " + waittingRoomCustomer + " finished his/her haircut");
-									if(totoalHaricut.addAndGet(1) >= allHaircut) {
-										System.out.println("All customer have got their hiarcut barber " + getName() + ""
-												+ " goes off-line");
-										return;
-									}
-									
+									//awake a customer from the waitting room
+									waittingRoomCustomer = waittingRoom.remove();
+									System.out.println("Barber " + getName() + " awaked customer "+ waittingRoomCustomer + " in the waitting room");
+								} finally {
+									lock.unlock();
+								}
+								System.out.println("Barber " + getName() + " is giving customer "+ waittingRoomCustomer + " haircut....");								//do haircut
+								devaation = r.nextDouble();
+								pauseTime = devaation > 0.5 ? (int) barberHiarcutTime*(1-devaation):(int) barberHiarcutTime*(1+devaation);
+								Thread.sleep((long) pauseTime);
+								System.out.println("Customer " + waittingRoomCustomer + " finished his/her haircut");
+								if(totoalHaricut.addAndGet(1) >= allHaircut) {
+									System.out.println("All customer have got their hiarcut barber " + getName() + ""
+											+ " goes off-line");
+									return;
 								}
 							}
 						} catch (InterruptedException e) {
@@ -187,6 +184,7 @@ public class SleepingBarberThreadPoolVersion {
 		for (Thread thread : ts) {
 			thread.interrupt();
 		}
+		System.out.println("Closed!!!!!!!!");
 		
 	}
 
