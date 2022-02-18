@@ -179,6 +179,14 @@ public class SleepingBarberThreadPoolVersion {
 			e.printStackTrace();
 		}
 		
+		try {
+			Thread.sleep(allHaircut*barberHiarcutTime*2);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		for (Thread thread : ts) {
+			thread.interrupt();
+		}
 		
 	}
 
